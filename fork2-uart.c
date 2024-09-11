@@ -1,5 +1,5 @@
 /**
- * @file    fork-uart.c
+ * @file    fork2-uart.c
  * 
  * @brief Serial Port Programming in C (Serial Port Write)  
  * Non Cannonical mode 
@@ -35,7 +35,43 @@ const char *portTTY = "/dev/ttyUSB0"; // ttyUSB0 is the FT232 based USB2SERIAL C
 /// @param  aucun
 void codeDuProcessusParent(void)
 {
- // Read data from serial port 
+    int n = 0;
+
+    while(n < 10)
+    {
+        printf("1 faire quelques trucs .... \n");
+        n++;
+        sleep(3);
+    }
+}
+
+/// @brief Code exécuté par le processus Fils
+/// @param aucun
+void codeDuProcessusEnfant(void)
+{
+    
+    // Write data to serial port 
+    char write_byte = 0;
+	int  bytes_written  = 0;  	// Value for storing the number of bytes written to the port 
+
+    while(1)
+    {
+        write_byte = getchar();
+        if(write_byte == 'q')
+        {
+            break;
+        }
+    	bytes_written = write(fd, &write_byte, sizeof(write_byte)); // use write() to send data to port 
+	    									// "fd"                   - file descriptor pointing to the opened serial port
+		    								//	"write_buffer"         - address of the buffer containing data
+			    							// "sizeof(write_buffer)" - No of bytes to write 
+    }
+}
+
+
+void codeDuProcessusEnfant2(void)
+{
+    // Read data from serial port 
 	tcflush(fd, TCIFLUSH);  // Discards old data in the rx buffer
 	char read_byte = 0;
 	char  bytes_read = 0;    // Number of bytes read by the read() system call 
@@ -51,31 +87,9 @@ void codeDuProcessusParent(void)
     	printf("%c", read_byte);
         read_byte = 0x00;
     }
-}
-
-/// @brief Code exécuté par le processus Fils
-/// @param aucun
-void codeDuProcessusEnfant(void)
-{
     
-    // Write data to serial port 
-    char write_byte = 0;
-	int  bytes_written  = 0;  	// Value for storing the number of bytes written to the port 
-
-
-    while(1)
-    {
-        write_byte = getchar();
-        if(write_byte == 'q')
-        {
-            break;
-        }
-    	bytes_written = write(fd, &write_byte, sizeof(write_byte)); // use write() to send data to port 
-	    									// "fd"                   - file descriptor pointing to the opened serial port
-		    								//	"write_buffer"         - address of the buffer containing data
-			    							// "sizeof(write_buffer)" - No of bytes to write 
-    }
 }
+
 
     
 void InitPortSerie(void)
@@ -128,26 +142,52 @@ void InitPortSerie(void)
 
 void main(void)
 {
+    pid_t pid1;
+    pid_t pid2;
+
     InitPortSerie();
 
-    pid_t pid;
-    pid = fork();
+
+
+
+
+    pid1 = fork();
 
     // Appel fonction Enfant
-    if(pid == 0)
+    if(pid1 == -1)
+    {
+        perror("fork");
+        return -1;
+    }
+    else if(pid1 == 0)
     {
         codeDuProcessusEnfant();
     }
-
-    // Appel fonction Parent
-    if(pid != 0)
+    else
     {
-        codeDuProcessusParent();
-        wait(NULL);
+        pid2 = fork();
+
+        if(pid2 == -1)
+        {
+            perror("fork2");
+            return -1;
+        }
+        else if(pid2 == 0)
+        {
+            codeDuProcessusEnfant2();
+        }
+        else 
+        {
+            codeDuProcessusParent();
+            wait(NULL);
+            wait(NULL);
+        }
     }
     
 
     close(fd); // Close the serial port
+    
+    printf("Fin du processus principal\n");
 }
 
 

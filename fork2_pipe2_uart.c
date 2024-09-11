@@ -1,5 +1,5 @@
 /**
- * @file    fork-uart.c
+ * @file    fork2_pipe2_uart.c
  * 
  * @brief Serial Port Programming in C (Serial Port Write)  
  * Non Cannonical mode 
@@ -24,6 +24,9 @@
 
 const char* processusPereOuFils;
 int fd; //File Descriptor
+int pipeLirePortSerie[2];
+int pipeEcrirePortSerie[2];
+
 // device port série à utiliser 
 //const char *portTTY = "/dev/ttyGS0"; 
 const char *portTTY = "/dev/ttyUSB0"; // ttyUSB0 is the FT232 based USB2SERIAL Converter
@@ -35,21 +38,13 @@ const char *portTTY = "/dev/ttyUSB0"; // ttyUSB0 is the FT232 based USB2SERIAL C
 /// @param  aucun
 void codeDuProcessusParent(void)
 {
- // Read data from serial port 
-	tcflush(fd, TCIFLUSH);  // Discards old data in the rx buffer
-	char read_byte = 0;
-	char  bytes_read = 0;    // Number of bytes read by the read() system call 
-	int i = 0;
+    int n = 0;
 
-    while (1)
+    while(n < 10)
     {
-        bytes_read = read(fd, &read_byte, 1); // Read the data 
-        if(read_byte == '!')
-        {   
-            break;
-        }
-    	printf("%c", read_byte);
-        read_byte = 0x00;
+        printf("1 faire quelques trucs .... \n");
+        n++;
+        sleep(3);
     }
 }
 
@@ -57,11 +52,12 @@ void codeDuProcessusParent(void)
 /// @param aucun
 void codeDuProcessusEnfant(void)
 {
-    
-    // Write data to serial port 
+    char buf;
+    char read_byte = 0;
     char write_byte = 0;
-	int  bytes_written  = 0;  	// Value for storing the number of bytes written to the port 
 
+    close(pipeLirePortSerie[1]);  // Fermer l'extrémité d'écriture
+    close(pipeEcrirePortSerie[0]);  // Fermer l'extrémité de lecture 
 
     while(1)
     {
@@ -70,12 +66,56 @@ void codeDuProcessusEnfant(void)
         {
             break;
         }
+        write(pipeEcrirePortSerie[1], &write_byte, 1);
+
+
+        read(pipeLirePortSerie[0], &read_byte, 1);
+        printf("%c", read_byte);
+
+    }
+}
+
+
+void codeDuProcessusEnfant2(void)
+{
+    
+    // Read data from serial port 
+    int i = 0;
+	tcflush(fd, TCIFLUSH);  // Discards old data in the rx buffer
+    char read_byte = 0;
+	char  bytes_read = 0;    // Number of bytes read by the read() system call 
+	
+
+    int bytes_written = 0;
+    char write_byte = 0;
+
+    close(pipeLirePortSerie[0]);  // Fermer l'extrémité de lecture  
+    close(pipeEcrirePortSerie[1]);  // Fermer l'extrémité d'écriture 
+
+    while (1)
+    {
+        read(pipeEcrirePortSerie[0], &write_byte, 1);
+
     	bytes_written = write(fd, &write_byte, sizeof(write_byte)); // use write() to send data to port 
 	    									// "fd"                   - file descriptor pointing to the opened serial port
 		    								//	"write_buffer"         - address of the buffer containing data
 			    							// "sizeof(write_buffer)" - No of bytes to write 
+
+
+        bytes_read = read(fd, &read_byte, 1); // Read the data 
+        if(read_byte == '!')
+        {   
+            break;
+        }
+    	
+        write(pipeLirePortSerie[1], &read_byte, 1);
+        read_byte  = 0x00;
     }
+
+
+    
 }
+
 
     
 void InitPortSerie(void)
@@ -128,26 +168,57 @@ void InitPortSerie(void)
 
 void main(void)
 {
+    pid_t pid1;
+    pid_t pid2;
+
     InitPortSerie();
 
-    pid_t pid;
-    pid = fork();
+
+    // Créer le pipe
+    if (pipe(pipeLirePortSerie) == -1) {
+        perror("pipe");
+    }
+
+    if(pipe(pipeEcrirePortSerie) == -1)
+    {
+        perror("pipe");
+    }
+
+    pid1 = fork();
 
     // Appel fonction Enfant
-    if(pid == 0)
+    if(pid1 == -1)
+    {
+        perror("fork");
+    }
+    else if(pid1 == 0)
     {
         codeDuProcessusEnfant();
     }
-
-    // Appel fonction Parent
-    if(pid != 0)
+    else
     {
-        codeDuProcessusParent();
-        wait(NULL);
+        pid2 = fork();
+
+        if(pid2 == -1)
+        {
+            perror("fork2");
+        }
+        else if(pid2 == 0)
+        {
+            codeDuProcessusEnfant2();
+        }
+        else 
+        {
+            codeDuProcessusParent();
+            wait(NULL);
+            wait(NULL);
+        }
     }
     
 
     close(fd); // Close the serial port
+    
+    printf("Fin du processus principal\n");
 }
 
 
