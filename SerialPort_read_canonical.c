@@ -57,7 +57,7 @@ void main(void)
 
 	SerialPortSettings.c_lflag &= ~(ECHO | ECHOE | ISIG);  // Non Cannonical mode, Disable echo, Disable signal  
 
-	SerialPortSettings.c_lflag |= ICANON;  
+	SerialPortSettings.c_lflag |= ICANON;  // Set the canonical mode   
 
 	SerialPortSettings.c_oflag &= ~OPOST;	// No Output Processing
 
