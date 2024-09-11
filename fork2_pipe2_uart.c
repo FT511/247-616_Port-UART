@@ -62,10 +62,6 @@ void codeDuProcessusEnfant(void)
     while(1)
     {
         write_byte = getchar();
-        if(write_byte == 'q')
-        {
-            break;
-        }
         write(pipeEcrirePortSerie[1], &write_byte, 1);
 
 
@@ -103,11 +99,6 @@ void codeDuProcessusEnfant2(void)
 
 
         bytes_read = read(fd, &read_byte, 1); // Read the data 
-        if(read_byte == '!')
-        {   
-            break;
-        }
-    	
         write(pipeLirePortSerie[1], &read_byte, 1);
         read_byte  = 0x00;
     }
@@ -217,7 +208,6 @@ void main(void)
     
 
     close(fd); // Close the serial port
-    
     printf("Fin du processus principal\n");
 }
 
